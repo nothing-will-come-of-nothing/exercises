@@ -9,7 +9,8 @@ const id = (x) => { console.log('called func with', x); return x };
 // This is better than an array for membership checks, because we can access the function directly
 const commandFunctions = {
   $set: (command, toUpdate) => command.value || toUpdate,
-  $unshift: id,
+  // If we had a bit more modern node [ ...command.value, ...toUpdate ]
+  $unshift: (command, toUpdate) => command.value ? command.value.concat(toUpdate) : toUpdate,
   $splice: id,
   $merge: id,
   $push: id,
