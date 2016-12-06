@@ -1,3 +1,5 @@
+"use strict";
+
 // We're going to need to check if the commandSet key is also on the toUpdate obj
 // though this will be useful elsewhere. Whole ugly parens or false bit is so we get a boolean
 // back rather than undefined
@@ -6,13 +8,6 @@ const isKeyOf = (key, obj) => (obj && obj.hasOwnProperty && obj.hasOwnProperty(k
 const immutableAssign = (toAssign, obj) => Object.assign({}, obj, toAssign);
 // Immutably set key on obj to value via immutableAssign
 const immutableSet = (key, value, obj) => immutableAssign({ [key]: value }, obj);
-// Simple reduce helper
-const reduceObj = (func, seed, obj) => {
-
-  return Object.keys(obj)
-    .reduce((acc, key) => func(acc, obj[key], key), seed);
-
-};
 
 // This is better than an array for membership checks, because we can access the function directly
 const commandFunctions = {
@@ -66,7 +61,6 @@ const update = (toUpdate, commandSet) => {
   // If a command exists directly on the commandSet, we can go ahead and perform it here
   // rather than initiating the toUpdate reducer
   const command = getCommand(commandSet);
-  console.log(command, toUpdate);
 
   if (command.func) {
 
@@ -84,30 +78,23 @@ const update = (toUpdate, commandSet) => {
 
   }
 
-  const toUpdateKeys = Object.keys(toUpdate);
+  // Come at this from the other direction. Command is source of reduce/recursion b/c keys present
+  // in the command but not in 'toUpdate' should be created
+  const reducedCommand = command.keys
+    ? command.keys.reduce(
+      (acc, key) => {
 
-  if (toUpdateKeys.length === 0 && command.keys) {
+        const toUpdateValue = (toUpdate && toUpdate[key]) || {};
 
-    return update({ [command.key]: null }, commandSet[command.key]);
+        return immutableSet(key, update(toUpdateValue, commandSet[key]), acc);
 
-  }
+      },
+      {}
+    )
+    : {};
 
-  return toUpdateKeys.reduce(
-    (acc, key) => {
-
-      const value = toUpdate[key];
-      const isKeyResult = isKeyOf(key, commandSet);
-      // This will be a recursive call if commandSet key is a key of the updating object, otherwise
-      // just set the original value
-      const newValue = isKeyResult ? update(value, commandSet[key]) : value;
-
-      // This could basically be acc[key] = recursiveReduce..., but I prefer reducers to avoid
-      // mutation
-      return immutableSet(key, newValue, acc);
-
-    },
-    {}
-  );
+  // Now we have to add back in any missing props from the original update object
+  return immutableAssign(reducedCommand, toUpdate);
 
 };
 
