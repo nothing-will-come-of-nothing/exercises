@@ -2,5 +2,8 @@
   "private": true,
   "scripts": {
     "test": "mocha test"
+  },
+  "dependencies": {
+    "sinon": "^1.17.6"
   }
 }
