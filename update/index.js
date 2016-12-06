@@ -15,6 +15,10 @@ const commandFunctions = {
   $set: (command, toUpdate) => command.value || toUpdate,
   // If we had a bit more modern node [ ...command.value, ...toUpdate ]
   $unshift: (command, toUpdate) => command.value ? command.value.concat(toUpdate) : toUpdate,
+  // Same comment as above, but [ ...toUpdate, ...command.value ]
+  // I'm sure both could be Array.prototype.<method>.apply, but I find that kind of ugly when
+  // not necessary
+  $push: (command, toUpdate) => command.value ? toUpdate.concat(command.value) : toUpdate,
   $splice: (command, toUpdate) => {
 
     if (!command.value)
@@ -31,7 +35,6 @@ const commandFunctions = {
   $merge: (command, toUpdate) => command.value
     ? immutableAssign({}, toUpdate, command.value)
     : toUpdate,
-  $push: id,
   hasOwnProperty: id,
 };
 
@@ -95,20 +98,13 @@ const update = (toUpdate, commandSet) => {
 
       const isKeyResult = isKeyOf(key, commandSet);
       const value = toUpdate[key];
+      // This will be a recursive call if commandSet key is a key of the updating object, otherwise
+      // just set the original value
+      const newValue = isKeyResult ? update(value, commandSet[key]) : value;
 
-      // This will be a recursive call if commandSet key is a key of the updating object
-      if (isKeyResult) {
-
-        const newValue = update(value, commandSet[key]);
-
-        // This could basically be acc[key] = recursiveReduce..., but I prefer reducers to avoid
-        // mutation
-        return immutableSet(key, newValue, acc);
-
-      }
-
-      // Key is to be ignored and thus simply set to the original value
-      return immutableSet(key, value, acc);
+      // This could basically be acc[key] = recursiveReduce..., but I prefer reducers to avoid
+      // mutation
+      return immutableSet(key, newValue, acc);
 
     },
     {}
