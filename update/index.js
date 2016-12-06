@@ -1,5 +1,9 @@
 "use strict";
 
+// In case you're confused by a lot of the order of function signatures, I'm a big fan of lodash/fp
+// or Ramda's argument order so that if these functions were curried you'd be able to:
+// flow(isKeyOf('test'), doSomethingWithResult)({ test: true })
+
 // We're going to need to check if the commandSet key is also on the toUpdate obj
 // though this will be useful elsewhere. Whole ugly parens or false bit is so we get a boolean
 // back rather than undefined
@@ -80,6 +84,8 @@ const update = (toUpdate, commandSet) => {
     ? command.keys.reduce(
       (acc, key) => {
 
+        // Basically a 'get prop or return an empty object' in case toUpdate doesn't exist or
+        // doesn't have the key at this point
         const toUpdateValue = (toUpdate && toUpdate[key]) || {};
 
         return immutableSet(key, update(toUpdateValue, commandSet[key]), acc);
