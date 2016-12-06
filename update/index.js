@@ -50,23 +50,14 @@ const commandFunctions = {
 // and I'll just select one of them and warn the user
 const getCommand = (commandSet) => {
 
-  return Object.keys(commandSet).reduce(
-    (acc, key) => {
+  const keys = Object.keys(commandSet);
+  const hasMultiple = keys.length > 1;
+  const key = keys[0];
+  // Oh, tricky, I guess I do have to check isKeyOf b/c someone might want to update a key
+  // called hasOwnProperties
+  const func = isKeyOf(key, commandFunctions) && commandFunctions[key];
 
-      // Oh, tricky, I guess I do have to check isKeyOf b/c someone might want to update a key
-      // called hasOwnProperties
-      const func = isKeyOf(key, commandFunctions) && commandFunctions[key];
-
-      if (!func)
-        return acc;
-
-      const hasMultiple = acc.key && true;
-
-      return { key, value: commandSet[key], hasMultiple, func };
-
-    },
-    {}
-  );
+  return { key, keys, value: commandSet[key], hasMultiple, func };
 
 };
 
@@ -75,8 +66,9 @@ const update = (toUpdate, commandSet) => {
   // If a command exists directly on the commandSet, we can go ahead and perform it here
   // rather than initiating the toUpdate reducer
   const command = getCommand(commandSet);
+  console.log(command, toUpdate);
 
-  if (typeof toUpdate !== 'object' || command.key) {
+  if (command.func) {
 
     if (command.hasMultiple) {
 
@@ -88,17 +80,22 @@ const update = (toUpdate, commandSet) => {
     }
 
     // Perform the command if it returned successfully
-    if (command.key)
-      return command.func(command.value, toUpdate);
-
-    // Otherwise, just return the object itself
-    return toUpdate;
+    return command.func(command.value, toUpdate);
 
   }
 
-  return reduceObj(
-    (acc, value, key) => {
+  const toUpdateKeys = Object.keys(toUpdate);
 
+  if (toUpdateKeys.length === 0 && command.keys) {
+
+    return update({ [command.key]: null }, commandSet[command.key]);
+
+  }
+
+  return toUpdateKeys.reduce(
+    (acc, key) => {
+
+      const value = toUpdate[key];
       const isKeyResult = isKeyOf(key, commandSet);
       // This will be a recursive call if commandSet key is a key of the updating object, otherwise
       // just set the original value
@@ -109,8 +106,7 @@ const update = (toUpdate, commandSet) => {
       return immutableSet(key, newValue, acc);
 
     },
-    {},
-    toUpdate
+    {}
   );
 
 };
