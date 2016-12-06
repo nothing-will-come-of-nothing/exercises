@@ -2,6 +2,10 @@
 // though this will be useful elsewhere. Whole ugly parens or false bit is so we get a boolean
 // back rather than undefined
 const isKeyOf = (key, obj) => (obj && obj.hasOwnProperty && obj.hasOwnProperty(key)) || false;
+// Abstracted Object.assign pattern for easy immutable updates
+const immutableAssign = (toAssign, obj) => Object.assign({}, obj, toAssign);
+// Immutably set key on obj to value via immutableAssign
+const immutableSet = (key, value, obj) => immutableAssign({ [key]: value }, obj);
 
 // Just for testing purposes...
 const id = (x) => { console.log('called func with', x); return x };
@@ -24,7 +28,9 @@ const commandFunctions = {
     return updating;
 
   },
-  $merge: id,
+  $merge: (command, toUpdate) => command.value
+    ? immutableAssign({}, toUpdate, command.value)
+    : toUpdate,
   $push: id,
   hasOwnProperty: id,
 };
@@ -60,7 +66,6 @@ const update = (toUpdate, commandSet) => {
   // If a command exists directly on the commandSet, we can go ahead and perform it here
   // rather than initiating the toUpdate reducer
   const command = getCommand(commandSet);
-  console.log(command)
 
   if (typeof toUpdate !== 'object' || command.key) {
 
@@ -97,14 +102,13 @@ const update = (toUpdate, commandSet) => {
         const newValue = update(value, commandSet[key]);
 
         // This could basically be acc[key] = recursiveReduce..., but I prefer reducers to avoid
-        // mutation even at a slight cost to legibility
-        return Object.assign({}, acc, { [key]: newValue });
+        // mutation
+        return immutableSet(key, newValue, acc);
 
       }
 
       // Key is to be ignored and thus simply set to the original value
-      console.log('Key is to be ignored and thus simply set to the original value');
-      return Object.assign({}, acc, { [key]: value });
+      return immutableSet(key, value, acc);
 
     },
     {}
