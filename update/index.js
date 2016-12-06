@@ -6,40 +6,42 @@ const isKeyOf = (key, obj) => (obj && obj.hasOwnProperty && obj.hasOwnProperty(k
 const immutableAssign = (toAssign, obj) => Object.assign({}, obj, toAssign);
 // Immutably set key on obj to value via immutableAssign
 const immutableSet = (key, value, obj) => immutableAssign({ [key]: value }, obj);
+// Simple reduce helper
+const reduceObj = (func, seed, obj) => {
 
-// Just for testing purposes...
-const id = (x) => { console.log('called func with', x); return x };
+  return Object.keys(obj)
+    .reduce((acc, key) => func(acc, obj[key], key), seed);
+
+};
 
 // This is better than an array for membership checks, because we can access the function directly
 const commandFunctions = {
-  $set: (command, toUpdate) => command.value || toUpdate,
+  $set: (value, toUpdate) => value || toUpdate,
   // If we had a bit more modern node [ ...command.value, ...toUpdate ]
-  $unshift: (command, toUpdate) => command.value ? command.value.concat(toUpdate) : toUpdate,
+  $unshift: (value, toUpdate) => value ? value.concat(toUpdate) : toUpdate,
   // Same comment as above, but [ ...toUpdate, ...command.value ]
   // I'm sure both could be Array.prototype.<method>.apply, but I find that kind of ugly when
   // not necessary
-  $push: (command, toUpdate) => command.value ? toUpdate.concat(command.value) : toUpdate,
-  $splice: (command, toUpdate) => {
+  $push: (value, toUpdate) => value ? toUpdate.concat(value) : toUpdate,
+  $splice: (value, toUpdate) => {
 
-    if (!command.value)
+    if (!value)
       return toUpdate;
 
     // Avoid global mutation while performing some evil local mutation via forEach and splice
     var updating = toUpdate.concat();
 
-    command.value.forEach((args) => Array.prototype.splice.apply(updating, args));
+    value.forEach((args) => Array.prototype.splice.apply(updating, args));
 
     return updating;
 
   },
-  $merge: (command, toUpdate) => command.value
-    ? immutableAssign(command.value, toUpdate)
+  $merge: (value, toUpdate) => value
+    ? immutableAssign(value, toUpdate)
     : toUpdate,
-  $apply: (command, toUpdate) => command.value
-    ? command.value(toUpdate)
+  $apply: (value, toUpdate) => value
+    ? value(toUpdate)
     : toUpdate,
-  // Not sure what this does really... looking at fb docs
-  hasOwnProperty: id,
 };
 
 // We actually need to reduce the commandSet to see if it has any command keys we're looking for.
@@ -51,9 +53,9 @@ const getCommand = (commandSet) => {
   return Object.keys(commandSet).reduce(
     (acc, key) => {
 
-      // Get the command function from the above object via prop lookup (I made the object, so
-      // no need for hasOwnProperty dance)
-      const func = commandFunctions[key];
+      // Oh, tricky, I guess I do have to check isKeyOf b/c someone might want to update a key
+      // called hasOwnProperties
+      const func = isKeyOf(key, commandFunctions) && commandFunctions[key];
 
       if (!func)
         return acc;
@@ -87,21 +89,17 @@ const update = (toUpdate, commandSet) => {
 
     // Perform the command if it returned successfully
     if (command.key)
-      return command.func(command, toUpdate);
+      return command.func(command.value, toUpdate);
 
     // Otherwise, just return the object itself
     return toUpdate;
 
   }
 
-  // Reduce the toUpdate object immutably
-  const toUpdateKeys = Object.keys(toUpdate);
-
-  return toUpdateKeys.reduce(
-    (acc, key) => {
+  return reduceObj(
+    (acc, value, key) => {
 
       const isKeyResult = isKeyOf(key, commandSet);
-      const value = toUpdate[key];
       // This will be a recursive call if commandSet key is a key of the updating object, otherwise
       // just set the original value
       const newValue = isKeyResult ? update(value, commandSet[key]) : value;
@@ -111,7 +109,8 @@ const update = (toUpdate, commandSet) => {
       return immutableSet(key, newValue, acc);
 
     },
-    {}
+    {},
+    toUpdate
   );
 
 };
