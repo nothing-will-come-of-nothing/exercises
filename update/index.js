@@ -33,8 +33,12 @@ const commandFunctions = {
 
   },
   $merge: (command, toUpdate) => command.value
-    ? immutableAssign({}, toUpdate, command.value)
+    ? immutableAssign(command.value, toUpdate)
     : toUpdate,
+  $apply: (command, toUpdate) => command.value
+    ? command.value(toUpdate)
+    : toUpdate,
+  // Not sure what this does really... looking at fb docs
   hasOwnProperty: id,
 };
 
