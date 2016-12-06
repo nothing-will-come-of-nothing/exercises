@@ -30,9 +30,7 @@ const throttlePromises = (limit, originalPromises) => {
   };
 
   // Get first promises to execute and pass them to executor
-  const toExecuteInAll = originalPromises
-    .slice(0, limit)
-    .map(() => execute());
+  const toExecuteInAll = Array(limit).fill().map(execute)
 
   return Promise.all(toExecuteInAll)
     // Return results after all promises have executed (index equals the original length)
