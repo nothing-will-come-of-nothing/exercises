@@ -1,12 +1,43 @@
-const throttlePromises = (num, arr) => {
+"use strict"
+// Forgot that node 4 doesn't like let without strict mode
 
-  // We'll wrap everything in a promise
-  return new Promise((resolve, reject) => {
+const throttlePromises = (limit, originalPromises) => {
 
-    // Do Some Stuff
+  // Wish I could solve this with recursion, but my brain is slow right now. Index it is.
+  // Maybe I'll come back to this
+  let index = 0;
+  let results = [];
+  // Assign to results, located here to keep mutation as near as possible to instantiation point
+  const assignResult = (nextIndex) => (result) => {
 
-  });
+    results[nextIndex] = result;
 
-};
+  };
+  const originalPromisesLength = originalPromises.length;
+  // Keep the promises executing as long as there is another one in the list
+  const execute = () => {
+
+    if (index === originalPromisesLength)
+      return;
+
+    // If we didn't do this and just did results.push(result) instead, we could lose ordering
+    const nextIndex = index++;
+
+    return originalPromises[nextIndex]()
+      .then(assignResult(nextIndex))
+      .then(execute);
+
+  };
+
+  // Get first promises to execute and pass them to executor
+  const toExecuteInAll = originalPromises
+    .slice(0, limit)
+    .map(() => execute());
+
+  return Promise.all(toExecuteInAll)
+    // Return results after all promises have executed (index equals the original length)
+    .then(() => results);
+
+}
 
 module.exports = throttlePromises;
