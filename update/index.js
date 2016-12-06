@@ -11,7 +11,19 @@ const commandFunctions = {
   $set: (command, toUpdate) => command.value || toUpdate,
   // If we had a bit more modern node [ ...command.value, ...toUpdate ]
   $unshift: (command, toUpdate) => command.value ? command.value.concat(toUpdate) : toUpdate,
-  $splice: id,
+  $splice: (command, toUpdate) => {
+
+    if (!command.value)
+      return toUpdate;
+
+    // Avoid global mutation while performing some evil local mutation via forEach and splice
+    var updating = toUpdate.concat();
+
+    command.value.forEach((args) => Array.prototype.splice.apply(updating, args));
+
+    return updating;
+
+  },
   $merge: id,
   $push: id,
   hasOwnProperty: id,
