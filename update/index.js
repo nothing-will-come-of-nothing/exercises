@@ -11,17 +11,15 @@ const immutableSet = (key, value, obj) => immutableAssign({ [key]: value }, obj)
 
 // This is better than an array for membership checks, because we can access the function directly
 const commandFunctions = {
-  $set: (value, toUpdate) => value || toUpdate,
+  $set: (value) => value,
   // If we had a bit more modern node [ ...command.value, ...toUpdate ]
-  $unshift: (value, toUpdate) => value ? value.concat(toUpdate) : toUpdate,
+  $unshift: (value, toUpdate) => value.concat(toUpdate),
   // Same comment as above, but [ ...toUpdate, ...command.value ]
   // I'm sure both could be Array.prototype.<method>.apply, but I find that kind of ugly when
   // not necessary
-  $push: (value, toUpdate) => value ? toUpdate.concat(value) : toUpdate,
+  $push: (value, toUpdate) => toUpdate.concat(value),
+  // Call splice with each set of args
   $splice: (value, toUpdate) => {
-
-    if (!value)
-      return toUpdate;
 
     // Avoid global mutation while performing some evil local mutation via forEach and splice
     var updating = toUpdate.concat();
@@ -31,12 +29,10 @@ const commandFunctions = {
     return updating;
 
   },
-  $merge: (value, toUpdate) => value
-    ? immutableAssign(value, toUpdate)
-    : toUpdate,
-  $apply: (value, toUpdate) => value
-    ? value(toUpdate)
-    : toUpdate,
+  // I can use my immutable assign directly to perform merge
+  $merge: immutableAssign,
+  // Call the provided function with the value to update
+  $apply: (value, toUpdate) => value(toUpdate),
 };
 
 // We actually need to reduce the commandSet to see if it has any command keys we're looking for.
@@ -73,8 +69,8 @@ const update = (toUpdate, commandSet) => {
 
     }
 
-    // Perform the command if it returned successfully
-    return command.func(command.value, toUpdate);
+    // Perform the command if it returned successfully and has a value
+    return command.value ? command.func(command.value, toUpdate) : toUpdate;
 
   }
 
